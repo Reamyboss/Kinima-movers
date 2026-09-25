@@ -39,6 +39,7 @@ export default function DriverHome() {
   const supabase = useMemo(() => (supabaseConfigured ? browserClient() : null), []);
   const [state, setState] = useState<"loading" | "signed-out" | "ready">("loading");
   const [name, setName] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
   const [driver, setDriver] = useState<Driver | null>(null);
   const [jobs, setJobs] = useState<OpenJob[]>([]);
   const [active, setActive] = useState<Job | null>(null);
@@ -52,10 +53,11 @@ export default function DriverHome() {
     if (!user) return setState("signed-out");
 
     const [{ data: profile }, { data: d }] = await Promise.all([
-      supabase.from("profiles").select("full_name").eq("id", user.id).single(),
+      supabase.from("profiles").select("full_name, role").eq("id", user.id).single(),
       supabase.from("drivers").select("status,is_online,plate_number,current_area,base_area").eq("id", user.id).maybeSingle(),
     ]);
     setName(profile?.full_name?.split(" ")[0] ?? "");
+    setIsAdmin(profile?.role === "admin");
     setDriver(d);
     if (d?.status === "approved") {
       const start = new Date(); start.setHours(0, 0, 0, 0);
@@ -105,6 +107,7 @@ export default function DriverHome() {
     );
   }
 
+  const adminLink = isAdmin ? <Link href="/admin" className="btn btn-amber justify-center">Open admin dashboard</Link> : null;
   const signOut = <button className="muted font-semibold" onClick={async () => { await supabase?.auth.signOut(); refresh(); }}>Sign out</button>;
 
   if (!driver || driver.status !== "approved") {
@@ -116,7 +119,10 @@ export default function DriverHome() {
             <h1 className="display text-2xl font-extrabold">{driver?.status === "suspended" ? "Account paused" : "Waiting for approval"}</h1>
             <p>{driver?.status === "suspended"
               ? "Your driver account is paused. Please call the Kinma Movers office."
-              : "Thanks for applying. The Kinma Movers team is checking your details. Once you're approved you can go online here."}</p>
+              : isAdmin
+                ? "You're the admin. To take jobs as a driver too, approve yourself in the Drivers tab of your dashboard."
+                : "Thanks for applying. The Kinma Movers team is checking your details. Once you're approved you can go online here."}</p>
+            {adminLink}
           </div>
         </section>
       </main>
@@ -127,6 +133,7 @@ export default function DriverHome() {
     <main>
       <Brand right={signOut} />
       <section className="wrap flex max-w-xl flex-col gap-4 pb-10">
+        {adminLink}
         <div className="flex items-center justify-between">
           <h1 className="display text-2xl font-extrabold">Hi{name ? `, ${name}` : ""}</h1>
           <span className="muted font-mono">{driver.plate_number}</span>
