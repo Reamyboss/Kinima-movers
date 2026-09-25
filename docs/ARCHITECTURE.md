@@ -76,7 +76,7 @@ The customer describes their load in their own words. Claude (model `claude-opus
 | `summary` | one or two friendly sentences |
 | `tips` | up to three packing or safety tips |
 
-The form fills in the load size and helpers, and the customer can still change them. The AI never sets the price; the pricing engine does. Requests are limited per visitor to protect costs. If the assistant is off or unavailable, booking works exactly the same without it.
+The form fills in the load size and helpers, and the customer can still change them. The AI never sets the price; the pricing engine does. Requests are limited per visitor to protect costs. Without a Claude API key, or when the API is busy, the same box uses a free built-in estimator (`src/lib/load-guess.ts`). It recognises common English and Pidgin words for household items (fridge, wardrobe, self con, room and parlour, gen, Ghana Must Go) and returns the same kind of answer.
 
 ## Maps
 

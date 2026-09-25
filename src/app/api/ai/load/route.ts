@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { guessLoad } from "@/lib/load-guess";
 import { adminClient } from "@/lib/supabase/admin";
 
 // AI load assistant: the customer describes their load in their own words
@@ -42,12 +43,12 @@ function tooMany(ip: string) {
 export async function POST(req: Request) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
   if (tooMany(ip)) return NextResponse.json({ error: "Please wait a few minutes before asking again." }, { status: 429 });
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return NextResponse.json({ error: "The AI assistant isn't switched on yet." }, { status: 503 });
-  }
   const body = await req.json().catch(() => null);
   const description = typeof body?.description === "string" ? body.description.trim().slice(0, 600) : "";
   if (description.length < 3) return NextResponse.json({ error: "Tell us what you're moving." }, { status: 400 });
+
+  // No Claude key yet: use the free built-in estimator instead.
+  if (!process.env.ANTHROPIC_API_KEY) return NextResponse.json(guessLoad(description));
 
   const client = new Anthropic();
   try {
@@ -68,10 +69,8 @@ export async function POST(req: Request) {
     await adminClient()?.from("ai_load_requests").insert({ description, suggestion });
     return NextResponse.json(suggestion);
   } catch (error) {
-    if (error instanceof Anthropic.RateLimitError) {
-      return NextResponse.json({ error: "The assistant is busy. Please pick your load type below." }, { status: 429 });
-    }
-    console.error("ai load assistant failed", error);
-    return NextResponse.json({ error: "The assistant is unavailable. Please pick your load type below." }, { status: 502 });
+    // Claude busy or unavailable: fall back to the built-in estimator.
+    if (!(error instanceof Anthropic.RateLimitError)) console.error("ai load assistant failed", error);
+    return NextResponse.json(guessLoad(description));
   }
 }
