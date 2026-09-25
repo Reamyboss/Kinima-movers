@@ -1,36 +1,30 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CarryGo
 
-## Getting Started
+Mini truck logistics for Lagos, run from the Ikorodu hub. Customers get an instant quote and book a Suzuki Carry; drivers accept and run jobs; the owner manages drivers and prices.
 
-First, run the development server:
+> No matter the size of load you wan move, your size of motto dey.
 
+## Stack
+- Next.js (App Router) on Vercel
+- Supabase (Postgres, auth, realtime)
+
+## Run locally
 ```bash
+cp .env.example .env.local   # fill in Supabase keys
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
+Without Supabase keys the site still shows quotes from the built-in price list; bookings need the database.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Database
+Run `supabase/migrations/0001_init.sql` in the Supabase SQL editor (or `supabase db push`). It creates the tables, row-level security and seeds the owner's zone prices.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Pricing
+`src/lib/pricing.ts` holds the quote formula. Prices live in the `pricing_*` tables so they can be edited from the admin panel:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+total = zone fare × load size + helpers × ₦5,000 + floors of stairs (pickup + drop-off) × ₦2,000, plus 40% of the pickup zone fare when pickup is outside Ikorodu town. The server recomputes every price; the browser never sets it.
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Roadmap
+- Phase 1: booking site ✅ started, driver app, admin dashboard, SMS/WhatsApp alerts
+- Phase 2: Paystack, live tracking, photo proof, ratings, payouts
+- Phase 3: Android/iOS apps, more vehicle sizes, business accounts
