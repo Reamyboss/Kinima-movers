@@ -35,13 +35,13 @@ export default function DriverSignup() {
         {done ? (
           <div className="card flex flex-col gap-3 p-6">
             <h1 className="display text-2xl font-extrabold">Application received</h1>
-            <p>Check {f.email} for a link to confirm your email. The CarryGo team will review your details and approve your account, then you can go online and take jobs.</p>
+            <p>Check {f.email} for a link to confirm your email. The Kinma Movers team will review your details and approve your account, then you can go online and take jobs.</p>
             <Link href="/login" className="btn btn-brand justify-center">Go to sign in</Link>
           </div>
         ) : (
           <form className="card flex flex-col gap-4 p-6" onSubmit={submit}>
             <div>
-              <span className="eyebrow">Drive with CarryGo</span>
+              <span className="eyebrow">Drive with Kinma Movers</span>
               <h1 className="display text-2xl font-extrabold">Apply to drive</h1>
               <p className="muted">For owners and drivers of Suzuki Carry mini trucks. We check every driver before approval.</p>
             </div>

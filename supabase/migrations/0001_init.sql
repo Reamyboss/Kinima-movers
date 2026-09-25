@@ -1,4 +1,4 @@
--- CarryGo core schema: people, pricing, bookings and their status history.
+-- Kinma Movers core schema: people, pricing, bookings and their status history.
 
 create extension if not exists pgcrypto;
 
@@ -64,7 +64,7 @@ create type booking_status as enum (
 
 create table bookings (
   id uuid primary key default gen_random_uuid(),
-  ref text unique not null default ('CG-' || upper(substr(encode(gen_random_bytes(4), 'hex'), 1, 6))),
+  ref text unique not null default ('KM-' || upper(substr(encode(gen_random_bytes(4), 'hex'), 1, 6))),
   customer_id uuid references profiles,
   customer_name text not null,
   customer_phone text not null,

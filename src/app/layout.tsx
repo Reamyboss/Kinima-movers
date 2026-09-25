@@ -6,7 +6,7 @@ const display = Archivo({ subsets: ["latin"], variable: "--font-display", axes: 
 const body = Figtree({ subsets: ["latin"], variable: "--font-body" });
 
 export const metadata: Metadata = {
-  title: "CarryGo · Move anything from Ikorodu to anywhere in Lagos",
+  title: "Kinma Movers · Move anything from Ikorodu to anywhere in Lagos",
   description: "Book a Suzuki Carry mini truck for household items, furniture and goods. Instant quotes, trusted drivers, Ikorodu hub.",
 };
 

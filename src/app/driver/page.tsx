@@ -92,7 +92,7 @@ export default function DriverHome() {
         <Brand />
         <section className="wrap max-w-md py-6">
           <div className="card flex flex-col gap-3 p-6">
-            <h1 className="display text-2xl font-extrabold">Drive with CarryGo</h1>
+            <h1 className="display text-2xl font-extrabold">Drive with Kinma Movers</h1>
             <p>Get moving jobs from Ikorodu to anywhere in Lagos. Keep {Math.round(0.8 * 100)}% of every trip.</p>
             <Link href="/driver/signup" className="btn btn-amber justify-center">Apply to drive</Link>
             <Link href="/login" className="btn btn-ghost justify-center">Sign in</Link>
@@ -112,8 +112,8 @@ export default function DriverHome() {
           <div className="card flex flex-col gap-2 p-6">
             <h1 className="display text-2xl font-extrabold">{driver?.status === "suspended" ? "Account paused" : "Waiting for approval"}</h1>
             <p>{driver?.status === "suspended"
-              ? "Your driver account is paused. Please call the CarryGo office."
-              : "Thanks for applying. The CarryGo team is checking your details. Once you're approved you can go online here."}</p>
+              ? "Your driver account is paused. Please call the Kinma Movers office."
+              : "Thanks for applying. The Kinma Movers team is checking your details. Once you're approved you can go online here."}</p>
           </div>
         </section>
       </main>

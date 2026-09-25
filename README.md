@@ -1,4 +1,4 @@
-# CarryGo
+# Kinma Movers
 
 Mini truck logistics for Lagos, run from the Ikorodu hub. Customers get an instant quote and book a Suzuki Carry; drivers accept and run jobs; the owner manages drivers and prices.
 
