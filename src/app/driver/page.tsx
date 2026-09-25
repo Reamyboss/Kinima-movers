@@ -2,11 +2,14 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import Brand from "@/components/Brand";
-import { formatNaira, LOAD_TYPES } from "@/lib/pricing";
+
+const TripMap = dynamic(() => import("@/components/TripMap"), { ssr: false });
+import { formatNaira, LOAD_TYPES, ZONES } from "@/lib/pricing";
 import { browserClient, supabaseConfigured } from "@/lib/supabase/client";
 
-type Driver = { status: "pending" | "approved" | "suspended"; is_online: boolean; plate_number: string | null };
+type Driver = { status: "pending" | "approved" | "suspended"; is_online: boolean; plate_number: string | null; current_area: string | null; base_area: string };
 type OpenJob = {
   id: string; ref: string; pickup_area: string; dropoff_area: string; load_type: string; helpers: number;
   pickup_floors: number; dropoff_floors: number; driver_earning: number; scheduled_for: string | null; created_at: string;
@@ -50,7 +53,7 @@ export default function DriverHome() {
 
     const [{ data: profile }, { data: d }] = await Promise.all([
       supabase.from("profiles").select("full_name").eq("id", user.id).single(),
-      supabase.from("drivers").select("status,is_online,plate_number").eq("id", user.id).maybeSingle(),
+      supabase.from("drivers").select("status,is_online,plate_number,current_area,base_area").eq("id", user.id).maybeSingle(),
     ]);
     setName(profile?.full_name?.split(" ")[0] ?? "");
     setDriver(d);
@@ -147,6 +150,21 @@ export default function DriverHome() {
           </button>
         </div>
 
+        <label className="card flex items-center justify-between gap-3 p-4">
+          <span><b>Where are you now?</b><span className="muted block">Closer drivers get matched first</span></span>
+          <select
+            id="current_area"
+            className="input w-auto"
+            value={driver.current_area ?? driver.base_area}
+            disabled={busy}
+            onChange={(e) => run(() => supabase!.rpc("set_driver_area", { p_area: e.target.value }))}
+          >
+            {ZONES.map((z) => (
+              <optgroup key={z.id} label={z.name}>{z.areas.map((a) => <option key={a}>{a}</option>)}</optgroup>
+            ))}
+          </select>
+        </label>
+
         <div className="grid grid-cols-2 gap-3">
           <div className="card p-3"><b className="display num text-xl">{formatNaira(today.earned)}</b><div className="muted">Earned today</div></div>
           <div className="card p-3"><b className="display num text-xl">{today.trips}</b><div className="muted">Trips today</div></div>
@@ -160,6 +178,7 @@ export default function DriverHome() {
               <span className="font-mono text-sm">{active.ref}</span>
               <span className="rounded-full bg-[var(--amber)] px-3 py-1 text-xs font-bold text-[var(--amber-ink)]">{STATUS_LABEL[active.status]}</span>
             </div>
+            <TripMap from={active.pickup_area} to={active.dropoff_area} height={200} />
             <div className="grid gap-1 text-sm">
               <div><span className="muted">Customer</span> <b>{active.customer_name}</b> · <span className="select-all">{active.customer_phone}</span></div>
               <div><span className="muted">Pickup</span> {active.pickup_address}, {active.pickup_area} {active.pickup_floors ? `(${active.pickup_floors} floors up)` : ""}</div>

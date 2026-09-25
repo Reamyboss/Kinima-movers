@@ -2,6 +2,7 @@ import Link from "next/link";
 import Brand from "@/components/Brand";
 import { requireAdmin } from "@/lib/admin-auth";
 import { formatNaira } from "@/lib/pricing";
+import { rankDrivers, type DriverCandidate } from "@/lib/matching";
 import { assignDriver, cancelBooking, savePrices, setDriverStatus } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -50,12 +51,25 @@ type Db = Awaited<ReturnType<typeof requireAdmin>>["db"];
 async function Jobs({ db }: { db: Db }) {
   const [{ data: bookings }, { data: drivers }] = await Promise.all([
     db.from("bookings").select("*, driver:drivers(id, plate_number, profile:profiles(full_name, phone))").order("created_at", { ascending: false }).limit(100),
-    db.from("drivers").select("id, plate_number, is_online, profile:profiles(full_name)").eq("status", "approved"),
+    db.from("drivers").select("id, plate_number, is_online, rating, base_area, current_area, profile:profiles(full_name)").eq("status", "approved"),
   ]);
+  const start = new Date(); start.setHours(0, 0, 0, 0);
+  const candidates: DriverCandidate[] = (drivers ?? []).map((x) => {
+    const mine = (bookings ?? []).filter((b) => b.driver_id === x.id);
+    return {
+      id: x.id,
+      name: (x.profile as unknown as { full_name: string } | null)?.full_name ?? "Driver",
+      plate: x.plate_number,
+      isOnline: x.is_online,
+      area: x.current_area ?? x.base_area,
+      rating: Number(x.rating),
+      tripsToday: mine.filter((b) => new Date(b.created_at) >= start && b.status !== "cancelled").length,
+      busy: mine.some((b) => !["requested", "delivered", "cancelled"].includes(b.status)),
+    };
+  });
   const list = bookings ?? [];
   const open = list.filter((b) => b.status === "requested").length;
   const moving = list.filter((b) => !["requested", "delivered", "cancelled"].includes(b.status)).length;
-  const start = new Date(); start.setHours(0, 0, 0, 0);
   const revenue = list.filter((b) => b.status === "delivered" && new Date(b.created_at) >= start).reduce((s, b) => s + b.total, 0);
 
   return (
@@ -82,25 +96,43 @@ async function Jobs({ db }: { db: Db }) {
             </div>
             <div className="muted">{b.pickup_address} → {b.dropoff_address}{b.load_notes ? ` · ${b.load_notes}` : ""}</div>
             {d && <div className="text-sm">Driver: <b>{d.profile?.full_name}</b> · {d.plate_number} · {d.profile?.phone}</div>}
-            {["requested", "assigned"].includes(b.status) && (
-              <div className="flex flex-wrap gap-2">
+            {["requested", "assigned"].includes(b.status) && (() => {
+              const ranked = rankDrivers(b.pickup_area, candidates.filter((c) => c.id !== b.driver_id));
+              const best = ranked[0];
+              return (
+              <div className="flex flex-col gap-2">
+                {best && (
+                  <div className="rounded-xl bg-[var(--soft)] p-3 text-sm">
+                    <span className="eyebrow">Best match</span>
+                    <div><b>{best.name}</b> · {best.plate} · {best.reasons.join(", ")}</div>
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-2">
+                {best && (
+                  <form action={assignDriver}>
+                    <input type="hidden" name="booking" value={b.id} />
+                    <input type="hidden" name="driver" value={best.id} />
+                    <button className="btn btn-amber">Assign {best.name.split(" ")[0]}</button>
+                  </form>
+                )}
                 <form action={assignDriver} className="flex flex-wrap gap-2">
                   <input type="hidden" name="booking" value={b.id} />
                   <select name="driver" id={`driver-${b.id}`} className="input w-auto" defaultValue="" required>
-                    <option value="" disabled>Choose driver</option>
-                    {(drivers ?? []).map((x) => {
-                      const p = x.profile as unknown as { full_name: string } | null;
-                      return <option key={x.id} value={x.id}>{p?.full_name} · {x.plate_number}{x.is_online ? " · online" : ""}</option>;
-                    })}
+                    <option value="" disabled>Or choose another driver</option>
+                    {ranked.map((x) => (
+                      <option key={x.id} value={x.id}>{x.name} · {x.km ?? "?"} km{x.isOnline ? " · online" : ""}</option>
+                    ))}
                   </select>
-                  <button className="btn btn-brand">{b.status === "requested" ? "Assign" : "Reassign"}</button>
+                  <button className="btn btn-ghost">{b.status === "requested" ? "Assign" : "Reassign"}</button>
                 </form>
                 <form action={cancelBooking}>
                   <input type="hidden" name="booking" value={b.id} />
                   <button className="btn btn-ghost">Cancel booking</button>
                 </form>
+                </div>
               </div>
-            )}
+              );
+            })()}
           </div>
         );
       })}

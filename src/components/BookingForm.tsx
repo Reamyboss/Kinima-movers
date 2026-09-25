@@ -1,7 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { computeQuote, formatNaira, type PricingConfig } from "@/lib/pricing";
+import { roadKmBetween } from "@/lib/geo";
+
+const TripMap = dynamic(() => import("./TripMap"), { ssr: false, loading: () => <div className="h-[220px] rounded-2xl bg-[var(--soft)]" /> });
 
 type Step = "trip" | "details" | "done";
 
@@ -47,6 +51,29 @@ export default function BookingForm({ pricing }: { pricing: PricingConfig }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [booked, setBooked] = useState<{ ref: string; total: number } | null>(null);
+  const [aiText, setAiText] = useState("");
+  const [aiBusy, setAiBusy] = useState(false);
+  const [ai, setAi] = useState<{ summary: string; tips: string[]; tripsNeeded: number; error?: string } | null>(null);
+
+  async function askAi() {
+    setAiBusy(true);
+    setAi(null);
+    try {
+      const res = await fetch("/api/ai/load", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description: aiText }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setF((p) => ({ ...p, loadType: data.loadType, helpers: data.helpers, loadNotes: aiText }));
+      setAi(data);
+    } catch (err) {
+      setAi({ summary: "", tips: [], tripsNeeded: 1, error: (err as Error).message || "The assistant is unavailable." });
+    } finally {
+      setAiBusy(false);
+    }
+  }
   const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF((p) => ({ ...p, [k]: v }));
 
   const quote = useMemo(() => {
@@ -96,6 +123,36 @@ export default function BookingForm({ pricing }: { pricing: PricingConfig }) {
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="field"><span>Pickup area</span><AreaSelect id="pickupArea" value={f.pickupArea} onChange={(v) => set("pickupArea", v)} pricing={pricing} /></label>
             <label className="field"><span>Drop-off area</span><AreaSelect id="dropoffArea" value={f.dropoffArea} onChange={(v) => set("dropoffArea", v)} pricing={pricing} /></label>
+          </div>
+          <TripMap from={f.pickupArea} to={f.dropoffArea} />
+          {roadKmBetween(f.pickupArea, f.dropoffArea) !== null && (
+            <p className="muted -mt-3">About {roadKmBetween(f.pickupArea, f.dropoffArea)} km by road</p>
+          )}
+
+          <div className="flex flex-col gap-2 rounded-2xl bg-[var(--soft)] p-4">
+            <label htmlFor="aiText" className="font-semibold">Not sure which size? Tell us what you&apos;re moving</label>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <input
+                id="aiText"
+                className="input"
+                placeholder="e.g. 2 bedroom flat, big fridge, 6 cartons"
+                value={aiText}
+                onChange={(e) => setAiText(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (aiText.trim()) askAi(); } }}
+              />
+              <button type="button" className="btn btn-brand justify-center whitespace-nowrap" disabled={aiBusy || !aiText.trim()} onClick={askAi}>
+                {aiBusy ? "Checking…" : "Suggest for me"}
+              </button>
+            </div>
+            {ai?.error && <p className="muted" role="alert">{ai.error}</p>}
+            {ai && !ai.error && (
+              <div className="flex flex-col gap-1 text-sm" aria-live="polite">
+                <p>{ai.summary}</p>
+                {ai.tripsNeeded > 1 && <p className="font-semibold">This looks like {ai.tripsNeeded} truck trips. Book one trip now and we&apos;ll call to plan the rest.</p>}
+                {ai.tips.length > 0 && <ul className="muted list-disc pl-5">{ai.tips.map((t) => <li key={t}>{t}</li>)}</ul>}
+                <p className="muted">We picked the load size and helpers below. Change them if you like.</p>
+              </div>
+            )}
           </div>
 
           <fieldset className="flex flex-col gap-2">
