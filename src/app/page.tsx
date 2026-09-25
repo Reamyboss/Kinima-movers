@@ -1,3 +1,5 @@
+import Link from "next/link";
+import Brand from "@/components/Brand";
 import BookingForm from "@/components/BookingForm";
 import { formatNaira } from "@/lib/pricing";
 import { loadPricing } from "@/lib/pricing-db";
@@ -9,15 +11,7 @@ export default async function Home() {
 
   return (
     <main>
-      <header className="wrap flex items-center justify-between py-5">
-        <span className="display flex items-center gap-2 text-2xl font-extrabold">
-          <span className="grid h-9 w-9 place-items-center rounded-lg bg-[var(--amber)]" aria-hidden>
-            <svg width="22" height="16" viewBox="0 0 22 16"><rect x="0" y="2" width="13" height="9" rx="1.5" fill="#1B1400" /><path d="M13 5h4.5l3 3.5V11H13z" fill="#1B1400" /><circle cx="4.5" cy="13" r="2.4" fill="#1B1400" /><circle cx="16.5" cy="13" r="2.4" fill="#1B1400" /></svg>
-          </span>
-          CarryGo
-        </span>
-        <span className="muted font-semibold">Ikorodu, Lagos</span>
-      </header>
+      <Brand right={<Link href="/driver" className="muted font-semibold">Drive with us</Link>} />
 
       <section className="wrap grid items-start gap-8 py-6 lg:grid-cols-[1fr_1.1fr]">
         <div className="flex flex-col gap-4 lg:sticky lg:top-6">

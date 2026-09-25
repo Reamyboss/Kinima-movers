@@ -1,5 +1,5 @@
 import "server-only";
-import { adminClient } from "./supabase";
+import { adminClient } from "./supabase/admin";
 import { DEFAULT_PRICING, type PricingConfig, type ZoneId } from "./pricing";
 
 // Reads the admin-editable price list. Falls back to the built-in list when

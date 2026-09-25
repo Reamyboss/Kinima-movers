@@ -17,7 +17,14 @@ npm run dev
 Without Supabase keys the site still shows quotes from the built-in price list; bookings need the database.
 
 ## Database
-Run `supabase/migrations/0001_init.sql` in the Supabase SQL editor (or `supabase db push`). It creates the tables, row-level security and seeds the owner's zone prices.
+Run the files in `supabase/migrations/` in order in the Supabase SQL editor (or `supabase db push`). They create the tables, row-level security, driver job functions, and seed the owner's zone prices.
+
+Make yourself admin after signing up once: `update profiles set role = 'admin' where id = (select id from auth.users where email = 'you@example.com');`
+
+## Pages
+- `/` customer quote and booking
+- `/driver/signup`, `/login`, `/driver` driver application, sign-in, online switch, job list, trip steps
+- `/admin` jobs board with manual assign and cancel, driver approval, price editor
 
 ## Pricing
 `src/lib/pricing.ts` holds the quote formula. Prices live in the `pricing_*` tables so they can be edited from the admin panel:
@@ -25,6 +32,6 @@ Run `supabase/migrations/0001_init.sql` in the Supabase SQL editor (or `supabase
 total = zone fare × load size + helpers × ₦5,000 + floors of stairs (pickup + drop-off) × ₦2,000, plus 40% of the pickup zone fare when pickup is outside Ikorodu town. The server recomputes every price; the browser never sets it.
 
 ## Roadmap
-- Phase 1: booking site ✅ started, driver app, admin dashboard, SMS/WhatsApp alerts
+- Phase 1: booking site ✅, driver app ✅, admin dashboard ✅, SMS/WhatsApp alerts, customer trip tracking page
 - Phase 2: Paystack, live tracking, photo proof, ratings, payouts
 - Phase 3: Android/iOS apps, more vehicle sizes, business accounts

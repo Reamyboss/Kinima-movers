@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { computeQuote } from "@/lib/pricing";
 import { loadPricing } from "@/lib/pricing-db";
-import { adminClient } from "@/lib/supabase";
+import { adminClient } from "@/lib/supabase/admin";
 
 const Booking = z.object({
   customerName: z.string().trim().min(2, "Enter your name"),
