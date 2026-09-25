@@ -79,7 +79,7 @@ Ikorodu is the hub. The **farthest zone** on the trip sets the fare, because the
 
 ### 1. Database
 1. Create a project at [supabase.com](https://supabase.com).
-2. In **SQL Editor**, run each file in `supabase/migrations/` in order (`0001`, `0002`, `0003`). This creates the tables and security rules, and loads the prices above.
+2. In **SQL Editor**, open a new query, paste the whole of [`supabase/setup.sql`](supabase/setup.sql) and press **Run** (once only). This creates the tables and security rules, and loads the prices above. The same SQL is split by step in `supabase/migrations/`.
 3. From **Project Settings → API**, copy the project URL, `anon` key and `service_role` key.
 
 ### 2. Run locally
