@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import Brand from "@/components/Brand";
 import AreaWarnings from "@/components/AreaWarnings";
 import { notesForTrip, type AreaNote } from "@/lib/area-notes";
+import { SECTORS, sectorName } from "@/lib/sectors";
 
 const TripMap = dynamic(() => import("@/components/TripMap"), { ssr: false });
 import { formatNaira, LOAD_TYPES, ZONES } from "@/lib/pricing";
@@ -49,6 +50,7 @@ export default function DriverHome() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [notes, setNotes] = useState<AreaNote[]>([]);
+  const [sector, setSector] = useState<string | null>(null);
   const [levy, setLevy] = useState({ amount: "", note: "" });
 
   const refresh = useCallback(async () => {
@@ -63,6 +65,9 @@ export default function DriverHome() {
     setName(profile?.full_name?.split(" ")[0] ?? "");
     setIsAdmin(profile?.role === "admin");
     setDriver(d);
+    // Read separately so the page still works before the sectors update is run.
+    const { data: sec } = await supabase.from("drivers").select("sector").eq("id", user.id).maybeSingle();
+    setSector((sec as { sector?: string } | null)?.sector ?? null);
     if (d?.status === "approved") {
       const start = new Date(); start.setHours(0, 0, 0, 0);
       const [{ data: mine }, { data: open }] = await Promise.all([
@@ -148,6 +153,9 @@ export default function DriverHome() {
           <h1 className="display text-2xl font-extrabold">Hi{name ? `, ${name}` : ""}</h1>
           <span className="muted font-mono">{driver.plate_number}</span>
         </div>
+        {sector && (
+          <p className="muted -mt-2">Your sector: <b>{sectorName(sector)}</b>. {SECTORS.find((s) => s.id === sector)?.description}. Call the office to change it.</p>
+        )}
 
         <div className="card flex items-center justify-between gap-3 p-4" style={{ background: "var(--soft)" }}>
           <div>

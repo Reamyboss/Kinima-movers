@@ -13,6 +13,14 @@ export async function setDriverStatus(form: FormData) {
   revalidatePath("/admin");
 }
 
+export async function setDriverSector(form: FormData) {
+  const { db } = await requireAdmin();
+  const sector = str(form, "sector");
+  if (!["local", "lagos", "far"].includes(sector)) return;
+  await db.from("drivers").update({ sector }).eq("id", str(form, "id"));
+  revalidatePath("/admin");
+}
+
 export async function assignDriver(form: FormData) {
   const { db, user } = await requireAdmin();
   const id = str(form, "booking");

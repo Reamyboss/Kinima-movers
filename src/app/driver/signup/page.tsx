@@ -5,14 +5,15 @@ import { useState } from "react";
 import Brand from "@/components/Brand";
 import { browserClient, supabaseConfigured } from "@/lib/supabase/client";
 import { TERMS_VERSION } from "@/lib/company";
+import { SECTORS } from "@/lib/sectors";
 
 export default function DriverSignup() {
-  const [f, setF] = useState({ full_name: "", phone: "", email: "", password: "", plate_number: "", licence_number: "" });
+  const [f, setF] = useState({ full_name: "", phone: "", email: "", password: "", plate_number: "", licence_number: "", sector: "lagos" });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [done, setDone] = useState(false);
-  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF((p) => ({ ...p, [k]: e.target.value }));
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF((p) => ({ ...p, [k]: e.target.value }));
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -53,6 +54,11 @@ export default function DriverSignup() {
               <label className="field"><span>Plate number</span><input id="plate_number" className="input" required placeholder="IKD 482 XA" value={f.plate_number} onChange={set("plate_number")} /></label>
               <label className="field"><span>Driver&apos;s licence number</span><input id="licence_number" className="input" required value={f.licence_number} onChange={set("licence_number")} /></label>
             </div>
+            <label className="field"><span>Which trips do you want?</span>
+              <select id="sector" className="input" value={f.sector} onChange={set("sector")}>
+                {SECTORS.map((s) => <option key={s.id} value={s.id}>{s.name}: {s.description}</option>)}
+              </select>
+            </label>
             <label className="field"><span>Email</span><input id="email" className="input" type="email" required autoComplete="email" value={f.email} onChange={set("email")} /></label>
             <label className="field"><span>Password</span><input id="password" className="input" type="password" required minLength={8} autoComplete="new-password" value={f.password} onChange={set("password")} /></label>
             <label className="flex items-start gap-3 text-sm">

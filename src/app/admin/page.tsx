@@ -3,7 +3,9 @@ import Brand from "@/components/Brand";
 import { requireAdmin } from "@/lib/admin-auth";
 import { formatNaira } from "@/lib/pricing";
 import { rankDrivers, type DriverCandidate } from "@/lib/matching";
-import { assignDriver, cancelBooking, deleteAreaNote, saveAreaNote, savePrices, setDriverStatus } from "./actions";
+import { assignDriver, cancelBooking, deleteAreaNote, saveAreaNote, savePrices, setDriverSector, setDriverStatus } from "./actions";
+import { loadPricing } from "@/lib/pricing-db";
+import { SECTORS, sectorCovers } from "@/lib/sectors";
 
 export const dynamic = "force-dynamic";
 
@@ -50,9 +52,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
 type Db = Awaited<ReturnType<typeof requireAdmin>>["db"];
 
 async function Jobs({ db }: { db: Db }) {
-  const [{ data: bookings }, { data: drivers }] = await Promise.all([
+  const [{ data: bookings }, { data: drivers }, pricing] = await Promise.all([
     db.from("bookings").select("*, driver:drivers(id, plate_number, profile:profiles(full_name, phone))").order("created_at", { ascending: false }).limit(100),
-    db.from("drivers").select("id, plate_number, is_online, rating, base_area, current_area, profile:profiles(full_name)").eq("status", "approved"),
+    db.from("drivers").select("*, profile:profiles(full_name)").eq("status", "approved"),
+    loadPricing(),
   ]);
   const start = new Date(); start.setHours(0, 0, 0, 0);
   const candidates: DriverCandidate[] = (drivers ?? []).map((x) => {
@@ -66,6 +69,7 @@ async function Jobs({ db }: { db: Db }) {
       rating: Number(x.rating),
       tripsToday: mine.filter((b) => new Date(b.created_at) >= start && b.status !== "cancelled").length,
       busy: mine.some((b) => !["requested", "delivered", "cancelled"].includes(b.status)),
+      sector: x.sector as string | undefined,
     };
   });
   const list = bookings ?? [];
@@ -102,7 +106,7 @@ async function Jobs({ db }: { db: Db }) {
             {b.levy_paid > 0 && <div className="text-sm font-semibold">Levies recorded by driver: {formatNaira(b.levy_paid)} (customer refunds at cost)</div>}
             {d && <div className="text-sm">Driver: <b>{d.profile?.full_name}</b> · {d.plate_number} · {d.profile?.phone}</div>}
             {["requested", "assigned"].includes(b.status) && (() => {
-              const ranked = rankDrivers(b.pickup_area, candidates.filter((c) => c.id !== b.driver_id));
+              const ranked = rankDrivers(b.pickup_area, candidates.filter((c) => c.id !== b.driver_id && sectorCovers(c.sector, b.pickup_area, b.dropoff_area, pricing)));
               const best = ranked[0];
               return (
               <div className="flex flex-col gap-2">
@@ -152,7 +156,7 @@ async function Drivers({ db }: { db: Db }) {
   return (
     <div className="card overflow-x-auto">
       <table className="w-full min-w-[640px] text-sm">
-        <thead><tr className="text-left">{["Driver", "Phone", "Plate", "Licence", "Status", ""].map((h) => <th key={h} className="eyebrow p-3">{h}</th>)}</tr></thead>
+        <thead><tr className="text-left">{["Driver", "Phone", "Plate", "Licence", "Sector", "Status", ""].map((h) => <th key={h} className="eyebrow p-3">{h}</th>)}</tr></thead>
         <tbody>
           {list.map((d) => {
             const p = d.profile as unknown as { full_name: string; phone: string } | null;
@@ -162,6 +166,15 @@ async function Drivers({ db }: { db: Db }) {
                 <td className="p-3 select-all">{p?.phone}</td>
                 <td className="p-3 font-mono">{d.plate_number}</td>
                 <td className="p-3">{d.licence_number}</td>
+                <td className="p-3">
+                  <form action={setDriverSector} className="flex gap-2">
+                    <input type="hidden" name="id" value={d.id} />
+                    <select id={`sector-${d.id}`} name="sector" className="input w-auto" defaultValue={d.sector ?? "far"}>
+                      {SECTORS.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                    <button className="btn btn-ghost px-3 py-2">Save</button>
+                  </form>
+                </td>
                 <td className="p-3">{d.status}</td>
                 <td className="p-3">
                   <form action={setDriverStatus} className="flex gap-2">

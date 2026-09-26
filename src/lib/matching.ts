@@ -11,6 +11,7 @@ export type DriverCandidate = {
   rating: number;
   tripsToday: number;
   busy: boolean; // already on a job
+  sector?: string; // local, lagos or far
 };
 
 export type Match = DriverCandidate & { score: number; km: number | null; reasons: string[] };
