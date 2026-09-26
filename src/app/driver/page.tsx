@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import Brand from "@/components/Brand";
+import AreaWarnings from "@/components/AreaWarnings";
+import { notesForTrip, type AreaNote } from "@/lib/area-notes";
 
 const TripMap = dynamic(() => import("@/components/TripMap"), { ssr: false });
 import { formatNaira, LOAD_TYPES, ZONES } from "@/lib/pricing";
@@ -16,7 +18,7 @@ type OpenJob = {
 };
 type Job = OpenJob & {
   status: string; customer_name: string; customer_phone: string; pickup_address: string; dropoff_address: string;
-  load_notes: string | null; total: number;
+  load_notes: string | null; total: number; levy_paid?: number;
 };
 
 const NEXT_ACTION: Record<string, string> = {
@@ -46,6 +48,8 @@ export default function DriverHome() {
   const [today, setToday] = useState({ trips: 0, earned: 0 });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [notes, setNotes] = useState<AreaNote[]>([]);
+  const [levy, setLevy] = useState({ amount: "", note: "" });
 
   const refresh = useCallback(async () => {
     if (!supabase) return setState("signed-out");
@@ -72,6 +76,12 @@ export default function DriverHome() {
       setJobs((open ?? []) as OpenJob[]);
     }
     setState("ready");
+  }, [supabase]);
+
+  useEffect(() => {
+    // Levy notes change rarely, so load them once per visit.
+    supabase?.from("area_notes").select("id,place,area,keywords,levy_min,levy_max,note").eq("active", true).then(({ data }) =>
+      setNotes((data ?? []).map((n) => ({ id: n.id, place: n.place, area: n.area, keywords: n.keywords ?? [], levyMin: n.levy_min, levyMax: n.levy_max, note: n.note }))));
   }, [supabase]);
 
   useEffect(() => {
@@ -191,8 +201,28 @@ export default function DriverHome() {
               <div><span className="muted">Pickup</span> {active.pickup_address}, {active.pickup_area} {active.pickup_floors ? `(${active.pickup_floors} floors up)` : ""}</div>
               <div><span className="muted">Drop-off</span> {active.dropoff_address}, {active.dropoff_area} {active.dropoff_floors ? `(${active.dropoff_floors} floors up)` : ""}</div>
               <div><span className="muted">Load</span> {loadName(active.load_type)}{active.helpers ? `, ${active.helpers} helper${active.helpers > 1 ? "s" : ""}` : ""}{active.load_notes ? ` · ${active.load_notes}` : ""}</div>
-              <div><span className="muted">Collect</span> <b className="num">{formatNaira(active.total)}</b> <span className="muted">(you keep {formatNaira(active.driver_earning)})</span></div>
+              <div><span className="muted">Collect</span> <b className="num">{formatNaira(active.total + (active.levy_paid ?? 0))}</b> <span className="muted">(you keep {formatNaira(active.driver_earning)}{active.levy_paid ? `, plus ${formatNaira(active.levy_paid)} levy refund` : ""})</span></div>
             </div>
+            <AreaWarnings notes={notesForTrip(notes, { pickupArea: active.pickup_area, dropoffArea: active.dropoff_area, pickupAddress: active.pickup_address, dropoffAddress: active.dropoff_address })} audience="driver" />
+            <details className="rounded-xl bg-[var(--soft)] p-3 text-sm">
+              <summary className="font-semibold">Paid an area levy? Record it</summary>
+              <form
+                className="mt-2 flex flex-col gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  run(async () => {
+                    const r = await supabase!.rpc("record_levy", { p_booking: active.id, p_amount: Math.round(Number(levy.amount)), p_note: levy.note });
+                    if (!r.error) setLevy({ amount: "", note: "" });
+                    return r;
+                  });
+                }}
+              >
+                <input id="levy_amount" className="input" type="number" min={1} max={100000} required placeholder="Amount paid (₦)" value={levy.amount} onChange={(e) => setLevy((p) => ({ ...p, amount: e.target.value }))} />
+                <input id="levy_note" className="input" required maxLength={200} placeholder="Where, and who collected it (e.g. Alaba gate, market union)" value={levy.note} onChange={(e) => setLevy((p) => ({ ...p, note: e.target.value }))} />
+                <button className="btn btn-ghost justify-center" disabled={busy}>Save levy</button>
+                <p className="muted">The customer refunds this at cost when you deliver. Take a photo of any ticket or receipt.</p>
+              </form>
+            </details>
             <a
               className="btn btn-ghost justify-center"
               target="_blank"
@@ -219,6 +249,7 @@ export default function DriverHome() {
                     {loadName(j.load_type)} · {j.helpers} helper{j.helpers === 1 ? "" : "s"} · {j.pickup_floors + j.dropoff_floors} floors of stairs
                     {j.scheduled_for ? ` · ${new Date(j.scheduled_for).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" })}` : " · now"}
                   </div>
+                  <AreaWarnings notes={notesForTrip(notes, { pickupArea: j.pickup_area, dropoffArea: j.dropoff_area })} audience="driver" />
                   <button className="btn btn-amber justify-center" disabled={busy} onClick={() => run(async () => {
                     const r = await supabase!.rpc("accept_booking", { p_booking: j.id });
                     return r.data === false ? { error: { message: "Another driver took this job." } } : r;

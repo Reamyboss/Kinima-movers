@@ -3,6 +3,9 @@ import { z } from "zod";
 import { computeQuote } from "@/lib/pricing";
 import { loadPricing } from "@/lib/pricing-db";
 import { adminClient } from "@/lib/supabase/admin";
+import { loadAreaNotes } from "@/lib/area-notes-db";
+import { notesForTrip, levyText } from "@/lib/area-notes";
+import { TERMS_VERSION } from "@/lib/company";
 
 const Booking = z.object({
   customerName: z.string().trim().min(2, "Enter your name"),
@@ -17,6 +20,7 @@ const Booking = z.object({
   loadNotes: z.string().trim().max(500).optional(),
   helpers: z.coerce.number().int().min(0).max(4),
   scheduledFor: z.string().datetime({ offset: true }).optional().or(z.literal("")),
+  termsAccepted: z.literal(true, { error: "Please agree to the terms to book" }),
 });
 
 export async function POST(req: Request) {
@@ -39,29 +43,35 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Bookings open once the database is connected." }, { status: 503 });
   }
 
-  const { data, error } = await db
-    .from("bookings")
-    .insert({
-      customer_name: b.customerName,
-      customer_phone: b.customerPhone,
-      pickup_area: b.pickupArea,
-      pickup_address: b.pickupAddress,
-      pickup_floors: b.pickupFloors,
-      dropoff_area: b.dropoffArea,
-      dropoff_address: b.dropoffAddress,
-      dropoff_floors: b.dropoffFloors,
-      load_type: b.loadType,
-      load_notes: b.loadNotes || null,
-      helpers: b.helpers,
-      scheduled_for: b.scheduledFor || null,
-      quote_lines: quote.lines,
-      total: quote.total,
-      driver_earning: quote.driverEarning,
-    })
-    .select("id, ref, total")
-    .single();
+  // Record which levy warnings the customer saw, so a dispute can be settled.
+  const warnings = notesForTrip(await loadAreaNotes(), b).map((n) => ({ place: n.place, levy: levyText(n), note: n.note }));
+  const row = {
+    customer_name: b.customerName,
+    customer_phone: b.customerPhone,
+    pickup_area: b.pickupArea,
+    pickup_address: b.pickupAddress,
+    pickup_floors: b.pickupFloors,
+    dropoff_area: b.dropoffArea,
+    dropoff_address: b.dropoffAddress,
+    dropoff_floors: b.dropoffFloors,
+    load_type: b.loadType,
+    load_notes: b.loadNotes || null,
+    helpers: b.helpers,
+    scheduled_for: b.scheduledFor || null,
+    quote_lines: quote.lines,
+    total: quote.total,
+    driver_earning: quote.driverEarning,
+  };
+  const extra = { terms_version: TERMS_VERSION, terms_accepted_at: new Date().toISOString(), area_warnings: warnings };
 
-  if (error) {
+  let { data, error } = await db.from("bookings").insert({ ...row, ...extra }).select("id, ref, total").single();
+  if (error?.code === "PGRST204") {
+    // The database update that adds these columns hasn't been run yet; still take the booking.
+    console.warn("bookings missing terms/levy columns; run supabase/migrations/0004");
+    ({ data, error } = await db.from("bookings").insert(row).select("id, ref, total").single());
+  }
+
+  if (error || !data) {
     console.error("booking insert failed", error);
     return NextResponse.json({ error: "We couldn't save your booking. Please try again." }, { status: 500 });
   }

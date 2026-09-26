@@ -54,3 +54,32 @@ export async function savePrices(form: FormData) {
   revalidatePath("/admin");
   revalidatePath("/");
 }
+
+export async function saveAreaNote(form: FormData) {
+  const { db } = await requireAdmin();
+  const naira = (k: string) => (str(form, k).trim() === "" ? null : Math.max(0, Math.round(Number(str(form, k)) || 0)));
+  const place = str(form, "place").trim();
+  const note = str(form, "note").trim();
+  if (!place || !note) return;
+  const row = {
+    place,
+    note,
+    area: str(form, "area") || null,
+    keywords: str(form, "keywords").split(",").map((k) => k.trim().toLowerCase()).filter(Boolean),
+    levy_min: naira("levy_min"),
+    levy_max: naira("levy_max"),
+    active: form.get("active") === "on",
+  };
+  const id = str(form, "id");
+  const { error } = id ? await db.from("area_notes").update(row).eq("id", Number(id)) : await db.from("area_notes").insert(row);
+  if (error) console.error("area note save failed", error.message);
+  revalidatePath("/admin");
+  revalidatePath("/");
+}
+
+export async function deleteAreaNote(form: FormData) {
+  const { db } = await requireAdmin();
+  await db.from("area_notes").delete().eq("id", Number(str(form, "id")));
+  revalidatePath("/admin");
+  revalidatePath("/");
+}

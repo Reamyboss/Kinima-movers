@@ -4,6 +4,9 @@ import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { computeQuote, formatNaira, type PricingConfig } from "@/lib/pricing";
 import { roadKmBetween } from "@/lib/geo";
+import Link from "next/link";
+import { notesForTrip, type AreaNote } from "@/lib/area-notes";
+import AreaWarnings from "./AreaWarnings";
 
 const TripMap = dynamic(() => import("./TripMap"), { ssr: false, loading: () => <div className="h-[220px] rounded-2xl bg-[var(--soft)]" /> });
 
@@ -31,7 +34,7 @@ function AreaSelect({ id, value, onChange, pricing }: { id: string; value: strin
   );
 }
 
-export default function BookingForm({ pricing }: { pricing: PricingConfig }) {
+export default function BookingForm({ pricing, areaNotes = [] }: { pricing: PricingConfig; areaNotes?: AreaNote[] }) {
   const [step, setStep] = useState<Step>("trip");
   const [f, setF] = useState({
     pickupArea: "Ikorodu Garage",
@@ -47,6 +50,7 @@ export default function BookingForm({ pricing }: { pricing: PricingConfig }) {
     loadNotes: "",
     when: "now" as "now" | "later",
     scheduledFor: "",
+    termsAccepted: false,
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -79,6 +83,7 @@ export default function BookingForm({ pricing }: { pricing: PricingConfig }) {
   const quote = useMemo(() => {
     try { return computeQuote(f, pricing); } catch { return null; }
   }, [f, pricing]);
+  const warnings = useMemo(() => notesForTrip(areaNotes, f), [areaNotes, f]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -128,6 +133,7 @@ export default function BookingForm({ pricing }: { pricing: PricingConfig }) {
           {roadKmBetween(f.pickupArea, f.dropoffArea) !== null && (
             <p className="muted -mt-3">About {roadKmBetween(f.pickupArea, f.dropoffArea)} km by road</p>
           )}
+          <AreaWarnings notes={warnings} audience="customer" />
 
           <div className="flex flex-col gap-2 rounded-2xl bg-[var(--soft)] p-4">
             <label htmlFor="aiText" className="font-semibold">Not sure which size? Tell us what you&apos;re moving</label>
@@ -198,7 +204,12 @@ export default function BookingForm({ pricing }: { pricing: PricingConfig }) {
             <button type="button" className="chip" aria-pressed={f.when === "later"} onClick={() => set("when", "later")}><b>Schedule</b></button>
             {f.when === "later" && <input id="scheduledFor" type="datetime-local" className="input w-auto" required value={f.scheduledFor} onChange={(e) => set("scheduledFor", e.target.value)} />}
           </div>
+          <AreaWarnings notes={warnings} audience="customer" />
           <p className="muted">Pay the driver on delivery by cash or bank transfer.</p>
+          <label className="flex items-start gap-3 text-sm">
+            <input id="termsAccepted" type="checkbox" className="mt-1 h-4 w-4" required checked={f.termsAccepted} onChange={(e) => set("termsAccepted", e.target.checked)} />
+            <span>I agree to the <Link href="/terms" target="_blank" className="font-semibold underline">customer terms</Link>, the <Link href="/complaints" target="_blank" className="font-semibold underline">complaints policy</Link> and the <Link href="/privacy" target="_blank" className="font-semibold underline">privacy notice</Link>.</span>
+          </label>
         </>
       )}
 

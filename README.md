@@ -28,12 +28,15 @@ Kinma Movers works like Uber or Bolt, built for goods instead of passengers. Cus
 - **AI load assistant.** Type *"2 bedroom flat, big fridge, 6 cartons"* and get the right load size, helpers, number of trips and packing tips.
 - **Trip map.** Pickup, drop-off and the approximate road distance are shown as you choose.
 - **Book now or schedule** a date and time.
+- **Area levy warnings.** Places where unions, markets or estates charge trucks (Alaba, Mile 2, Ajah, Admiralty Road and more) are flagged before booking, and levies are refunded at cost with no commission.
+- **Clear terms.** [Customer terms](src/app/terms/page.tsx), [driver terms](src/app/driver-terms/page.tsx), a [complaints policy](src/app/complaints/page.tsx) that hears both sides, and a [privacy notice](src/app/privacy/page.tsx).
 
 ### For drivers
 - Apply online with plate and licence number, and start once the owner approves you.
 - Go online, set where you are, and see new jobs with what you'll earn.
 - Accept a job to see the customer's details, open Google Maps directions, and move the trip from pickup to delivery.
 - Track today's trips and earnings.
+- See levy warnings before accepting a job, and record any levy paid so the customer refunds it at cost.
 
 ### For the owner
 - **Live job board** showing what needs a driver, what's on the road and what was delivered today.

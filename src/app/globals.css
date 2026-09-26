@@ -74,3 +74,12 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .stepper { display: flex; align-items: center; gap: 10px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .stepper button { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); font-weight: 700; cursor: pointer; }
 .highlight { background: linear-gradient(transparent 62%, var(--amber) 62%); }
+
+/* Terms, privacy and complaints pages */
+.legal { max-width: 68ch; display: flex; flex-direction: column; gap: 14px; line-height: 1.65; }
+.legal h1 { font-family: var(--font-display), sans-serif; font-weight: 800; font-size: 2rem; line-height: 1.15; text-wrap: balance; }
+.legal h2 { font-family: var(--font-display), sans-serif; font-weight: 700; font-size: 1.25rem; margin-top: 18px; text-wrap: balance; }
+.legal ul, .legal ol { padding-left: 1.3rem; display: flex; flex-direction: column; gap: 6px; }
+.legal ul { list-style: disc; }
+.legal ol { list-style: decimal; }
+.legal a { text-decoration: underline; font-weight: 600; }

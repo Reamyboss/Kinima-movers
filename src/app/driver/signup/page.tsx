@@ -4,11 +4,13 @@ import Link from "next/link";
 import { useState } from "react";
 import Brand from "@/components/Brand";
 import { browserClient, supabaseConfigured } from "@/lib/supabase/client";
+import { TERMS_VERSION } from "@/lib/company";
 
 export default function DriverSignup() {
   const [f, setF] = useState({ full_name: "", phone: "", email: "", password: "", plate_number: "", licence_number: "" });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [agreed, setAgreed] = useState(false);
   const [done, setDone] = useState(false);
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF((p) => ({ ...p, [k]: e.target.value }));
 
@@ -21,7 +23,7 @@ export default function DriverSignup() {
     const { error } = await browserClient().auth.signUp({
       email,
       password,
-      options: { data: { ...meta, role: "driver" }, emailRedirectTo: `${location.origin}/driver` },
+      options: { data: { ...meta, role: "driver", terms_version: TERMS_VERSION, terms_accepted_at: new Date().toISOString() }, emailRedirectTo: `${location.origin}/driver` },
     });
     setBusy(false);
     if (error) return setError(error.message);
@@ -53,6 +55,10 @@ export default function DriverSignup() {
             </div>
             <label className="field"><span>Email</span><input id="email" className="input" type="email" required autoComplete="email" value={f.email} onChange={set("email")} /></label>
             <label className="field"><span>Password</span><input id="password" className="input" type="password" required minLength={8} autoComplete="new-password" value={f.password} onChange={set("password")} /></label>
+            <label className="flex items-start gap-3 text-sm">
+              <input id="agreed" type="checkbox" className="mt-1 h-4 w-4" required checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
+              <span>I have read and agree to the <Link href="/driver-terms" target="_blank" className="font-semibold underline">driver terms</Link>, the <Link href="/complaints" target="_blank" className="font-semibold underline">complaints policy</Link> and the <Link href="/privacy" target="_blank" className="font-semibold underline">privacy notice</Link>.</span>
+            </label>
             {error && <p role="alert" className="font-semibold text-[var(--danger)]">{error}</p>}
             <button className="btn btn-amber justify-center" disabled={busy}>{busy ? "Sending…" : "Send application"}</button>
             <p className="muted">Already approved? <Link href="/login" className="font-semibold underline">Sign in</Link></p>

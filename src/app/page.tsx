@@ -1,13 +1,15 @@
 import Link from "next/link";
 import Brand from "@/components/Brand";
 import BookingForm from "@/components/BookingForm";
+import SiteFooter from "@/components/SiteFooter";
 import { formatNaira } from "@/lib/pricing";
 import { loadPricing } from "@/lib/pricing-db";
+import { loadAreaNotes } from "@/lib/area-notes-db";
 
 export const revalidate = 60;
 
 export default async function Home() {
-  const pricing = await loadPricing();
+  const [pricing, areaNotes] = await Promise.all([loadPricing(), loadAreaNotes()]);
 
   return (
     <main>
@@ -28,7 +30,7 @@ export default async function Home() {
             <li>✓ Loading helpers available</li>
           </ul>
         </div>
-        <BookingForm pricing={pricing} />
+        <BookingForm pricing={pricing} areaNotes={areaNotes} />
       </section>
 
       <section className="wrap py-10">
@@ -53,6 +55,7 @@ export default async function Home() {
           Your price is the zone fare times the load size, plus {formatNaira(pricing.extras.helperFee)} per loading helper and {formatNaira(pricing.extras.stairsFeePerFloor)} per floor of stairs at pickup or drop-off.
         </p>
       </section>
+      <SiteFooter />
     </main>
   );
 }

@@ -3,7 +3,7 @@ import Brand from "@/components/Brand";
 import { requireAdmin } from "@/lib/admin-auth";
 import { formatNaira } from "@/lib/pricing";
 import { rankDrivers, type DriverCandidate } from "@/lib/matching";
-import { assignDriver, cancelBooking, savePrices, setDriverStatus } from "./actions";
+import { assignDriver, cancelBooking, deleteAreaNote, saveAreaNote, savePrices, setDriverStatus } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +11,7 @@ const TABS = [
   { id: "jobs", label: "Jobs" },
   { id: "drivers", label: "Drivers" },
   { id: "prices", label: "Prices" },
+  { id: "levies", label: "Area levies" },
 ] as const;
 
 const STATUS: Record<string, { label: string; tone: string }> = {
@@ -32,7 +33,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
   return (
     <main>
       <Brand right={<span className="muted font-semibold">Admin · {me?.full_name ?? "Owner"}</span>} />
-      <nav className="wrap flex gap-2 pb-4" aria-label="Admin sections">
+      <nav className="wrap flex flex-wrap gap-2 pb-4" aria-label="Admin sections">
         {TABS.map((t) => (
           <Link key={t.id} href={`/admin?tab=${t.id}`} className="chip" aria-pressed={tab === t.id}>
             <b>{t.label}</b>
@@ -40,7 +41,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
         ))}
       </nav>
       <section className="wrap pb-12">
-        {tab === "drivers" ? <Drivers db={db} /> : tab === "prices" ? <Prices db={db} /> : <Jobs db={db} />}
+        {tab === "drivers" ? <Drivers db={db} /> : tab === "prices" ? <Prices db={db} /> : tab === "levies" ? <Levies db={db} /> : <Jobs db={db} />}
       </section>
     </main>
   );
@@ -95,6 +96,10 @@ async function Jobs({ db }: { db: Db }) {
               {b.scheduled_for ? `for ${new Date(b.scheduled_for).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" })}` : `booked ${new Date(b.created_at).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" })}`}
             </div>
             <div className="muted">{b.pickup_address} → {b.dropoff_address}{b.load_notes ? ` · ${b.load_notes}` : ""}</div>
+            {Array.isArray(b.area_warnings) && b.area_warnings.length > 0 && (
+              <div className="text-sm">Levy warnings shown: {(b.area_warnings as { place: string }[]).map((w) => w.place).join(", ")}</div>
+            )}
+            {b.levy_paid > 0 && <div className="text-sm font-semibold">Levies recorded by driver: {formatNaira(b.levy_paid)} (customer refunds at cost)</div>}
             {d && <div className="text-sm">Driver: <b>{d.profile?.full_name}</b> · {d.plate_number} · {d.profile?.phone}</div>}
             {["requested", "assigned"].includes(b.status) && (() => {
               const ranked = rankDrivers(b.pickup_area, candidates.filter((c) => c.id !== b.driver_id));
@@ -210,5 +215,47 @@ async function Prices({ db }: { db: Db }) {
       <button className="btn btn-brand justify-center">Save prices</button>
       <p className="muted">New prices apply to the website within a minute. Bookings already made keep the price the customer saw.</p>
     </form>
+  );
+}
+
+async function Levies({ db }: { db: Db }) {
+  const [{ data: notes, error }, { data: areas }] = await Promise.all([
+    db.from("area_notes").select("*").order("place"),
+    db.from("pricing_areas").select("name").order("name"),
+  ]);
+  if (error) {
+    return <p className="card p-6">Area levies need a database update. In Supabase, open SQL Editor, paste the file <code>supabase/migrations/0004_area_notes_and_terms.sql</code> from GitHub, and press Run.</p>;
+  }
+  const areaNames = (areas ?? []).map((a) => a.name as string);
+  const NoteForm = ({ n }: { n?: Record<string, unknown> }) => (
+    <form action={saveAreaNote} className="card flex flex-col gap-3 p-5">
+      {n && <input type="hidden" name="id" value={String(n.id)} />}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="field"><span>Place</span><input id={`place-${n?.id ?? "new"}`} name="place" className="input" required defaultValue={(n?.place as string) ?? ""} placeholder="e.g. Alaba International Market" /></label>
+        <label className="field"><span>Show for every trip to or from</span>
+          <select id={`area-${n?.id ?? "new"}`} name="area" className="input" defaultValue={(n?.area as string) ?? ""}>
+            <option value="">No area, match address words only</option>
+            {areaNames.map((a) => <option key={a}>{a}</option>)}
+          </select>
+        </label>
+        <label className="field sm:col-span-2"><span>Address words that trigger it, separated by commas <span className="muted">(leave empty to show for the whole area)</span></span><input id={`keywords-${n?.id ?? "new"}`} name="keywords" className="input" defaultValue={((n?.keywords as string[]) ?? []).join(", ")} placeholder="alaba international, alaba market" /></label>
+        <label className="field"><span>Usual levy from (₦)</span><input id={`levy_min-${n?.id ?? "new"}`} name="levy_min" type="number" min={0} step={100} className="input num" defaultValue={(n?.levy_min as number | null) ?? ""} /></label>
+        <label className="field"><span>Usual levy up to (₦)</span><input id={`levy_max-${n?.id ?? "new"}`} name="levy_max" type="number" min={0} step={100} className="input num" defaultValue={(n?.levy_max as number | null) ?? ""} /></label>
+        <label className="field sm:col-span-2"><span>Note for customers and drivers</span><textarea id={`note-${n?.id ?? "new"}`} name="note" rows={2} className="input" required defaultValue={(n?.note as string) ?? ""} /></label>
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <label className="flex items-center gap-2"><input id={`active-${n?.id ?? "new"}`} name="active" type="checkbox" defaultChecked={n ? Boolean(n.active) : true} /> Show on the website</label>
+        <button className="btn btn-brand">{n ? "Save" : "Add place"}</button>
+        {n && <button formAction={deleteAreaNote} className="btn btn-ghost">Delete</button>}
+      </div>
+    </form>
+  );
+  return (
+    <div className="flex max-w-3xl flex-col gap-4">
+      <p className="muted">Places where unions, markets or estates demand a levy, or where barriers stop trucks. Customers see these before they book and drivers see them before they accept. Levies are refunded to the driver at cost, with no commission.</p>
+      {(notes ?? []).map((n) => <NoteForm key={n.id} n={n} />)}
+      <span className="eyebrow">Add a place</span>
+      <NoteForm />
+    </div>
   );
 }
