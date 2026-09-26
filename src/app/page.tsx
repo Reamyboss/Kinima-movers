@@ -5,6 +5,7 @@ import SiteFooter from "@/components/SiteFooter";
 import { formatNaira } from "@/lib/pricing";
 import { loadPricing } from "@/lib/pricing-db";
 import { loadAreaNotes } from "@/lib/area-notes-db";
+import { paymentsEnabled } from "@/lib/paystack";
 
 export const revalidate = 60;
 
@@ -22,7 +23,7 @@ export default async function Home() {
             No matter the size of load you wan move, <span className="highlight">your size of motto dey.</span>
           </h1>
           <p className="max-w-prose text-[var(--muted)]">
-            Household items, furniture and goods moved in and out of Ikorodu to anywhere in Lagos. Get your price now, book in a minute, and pay on delivery.
+            Household items, furniture and goods moved in and out of Ikorodu to anywhere in Lagos. Get your price now, book in a minute, and {paymentsEnabled() ? "pay safely online once a driver accepts" : "pay on delivery"}.
           </p>
           <ul className="grid gap-2 text-sm">
             <li>✓ Price shown before you book, no haggling</li>
@@ -30,7 +31,7 @@ export default async function Home() {
             <li>✓ Loading helpers available</li>
           </ul>
         </div>
-        <BookingForm pricing={pricing} areaNotes={areaNotes} />
+        <BookingForm pricing={pricing} areaNotes={areaNotes} payFirst={paymentsEnabled()} />
       </section>
 
       <section className="wrap py-10">

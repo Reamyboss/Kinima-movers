@@ -9,7 +9,7 @@ export const COMPANY = {
 };
 
 // Bump when the terms change, so each booking records which version was agreed.
-export const TERMS_VERSION = "2026-09-26";
+export const TERMS_VERSION = "2026-09-26.2";
 
 export function contactLine(): string {
   const bits = [COMPANY.phone && `call or WhatsApp ${COMPANY.phone}`, COMPANY.email && `email ${COMPANY.email}`].filter(Boolean);

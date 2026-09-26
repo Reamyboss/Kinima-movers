@@ -34,7 +34,7 @@ function AreaSelect({ id, value, onChange, pricing }: { id: string; value: strin
   );
 }
 
-export default function BookingForm({ pricing, areaNotes = [] }: { pricing: PricingConfig; areaNotes?: AreaNote[] }) {
+export default function BookingForm({ pricing, areaNotes = [], payFirst = false }: { pricing: PricingConfig; areaNotes?: AreaNote[]; payFirst?: boolean }) {
   const [step, setStep] = useState<Step>("trip");
   const [f, setF] = useState({
     pickupArea: "Ikorodu Garage",
@@ -54,7 +54,7 @@ export default function BookingForm({ pricing, areaNotes = [] }: { pricing: Pric
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [booked, setBooked] = useState<{ ref: string; total: number } | null>(null);
+  const [booked, setBooked] = useState<{ ref: string; total: number; token: string | null; payFirst: boolean } | null>(null);
   const [aiText, setAiText] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
   const [ai, setAi] = useState<{ summary: string; tips: string[]; tripsNeeded: number; error?: string } | null>(null);
@@ -115,7 +115,15 @@ export default function BookingForm({ pricing, areaNotes = [] }: { pricing: Pric
         <span className="eyebrow">Booking received</span>
         <h2 className="display text-2xl font-extrabold">We&apos;re finding your driver</h2>
         <p>Your booking number is <b className="num">{booked.ref}</b>. We&apos;ll call or text {f.customerPhone} as soon as a driver accepts, with their name and plate number.</p>
-        <p className="muted">Total to pay on delivery: <b className="num">{formatNaira(booked.total)}</b> by cash or bank transfer.</p>
+        {booked.payFirst ? (
+          <p>Total: <b className="num">{formatNaira(booked.total)}</b>. As soon as a driver accepts, pay on your booking page. The driver starts driving to you once you&apos;ve paid.</p>
+        ) : (
+          <p className="muted">Total to pay on delivery: <b className="num">{formatNaira(booked.total)}</b> by cash or bank transfer.</p>
+        )}
+        {booked.token && (
+          <Link href={`/track/${booked.token}`} className="btn btn-amber justify-center">Open your booking page</Link>
+        )}
+        {booked.token && <p className="muted">Save or bookmark that page. It shows your driver, lets you pay, and gives you your delivery code.</p>}
         <button className="btn btn-ghost justify-center" onClick={() => { setStep("trip"); setBooked(null); }}>Book another move</button>
       </div>
     );
@@ -205,7 +213,9 @@ export default function BookingForm({ pricing, areaNotes = [] }: { pricing: Pric
             {f.when === "later" && <input id="scheduledFor" type="datetime-local" className="input w-auto" required value={f.scheduledFor} onChange={(e) => set("scheduledFor", e.target.value)} />}
           </div>
           <AreaWarnings notes={warnings} audience="customer" />
-          <p className="muted">Pay the driver on delivery by cash or bank transfer.</p>
+          <p className="muted">{payFirst
+            ? "No payment now. Once a driver accepts, you pay online by card, transfer or USSD, and the money is held until your goods are delivered."
+            : "Pay the driver on delivery by cash or bank transfer."}</p>
           <label className="flex items-start gap-3 text-sm">
             <input id="termsAccepted" type="checkbox" className="mt-1 h-4 w-4" required checked={f.termsAccepted} onChange={(e) => set("termsAccepted", e.target.checked)} />
             <span>I agree to the <Link href="/terms" target="_blank" className="font-semibold underline">customer terms</Link>, the <Link href="/complaints" target="_blank" className="font-semibold underline">complaints policy</Link> and the <Link href="/privacy" target="_blank" className="font-semibold underline">privacy notice</Link>.</span>

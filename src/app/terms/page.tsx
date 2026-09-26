@@ -19,7 +19,10 @@ export default function CustomerTerms() {
         <li>You see the full price and how it is made up before you book. The driver cannot change it on the day.</li>
         <li>The price covers the truck, fuel, the driver, the helpers and the stairs you booked.</li>
         <li>If the load is much bigger than what you booked, or needs more helpers or floors, the driver will tell you before loading. The extra is worked out from our published price list, and you can agree to it, remove some items, or cancel as in section 6.</li>
-        <li>You pay the driver on delivery by cash or bank transfer, and only the amount on your booking plus any levy under section 3. Never pay extra money the driver asks for outside the app. If this happens, report it to us.</li>
+        <li><b>Paying online.</b> Once a driver accepts your booking, you pay the full price on your booking page through our payment partner, Paystack (card, bank transfer or USSD). The driver starts travelling to you only after payment. We hold the money until delivery.</li>
+        <li><b>Delivery code.</b> Your booking page shows a 4-digit code. Give it to the driver only when all your goods have arrived. It confirms delivery and releases the driver&apos;s pay.</li>
+        <li>Where online payment is not yet available for your booking, you pay the driver on delivery by cash or bank transfer.</li>
+        <li>You pay only the amount on your booking plus any levy under section 3. Never pay extra money the driver asks for outside the app. If this happens, report it to us.</li>
       </ul>
 
       <h2>3. Area levies (union, market and estate charges)</h2>
@@ -55,6 +58,7 @@ export default function CustomerTerms() {
         <li>You can cancel free of charge until a driver starts driving to your pickup.</li>
         <li>If you cancel after the driver has started driving to you, or the driver arrives and cannot load because you are not there or the goods are not ready after 30 minutes, you pay a call-out fee of 20% of the trip fare. This goes to the driver for fuel and time.</li>
         <li>If we or the driver cancel, you pay nothing and we will try to find another driver.</li>
+        <li>If you paid online, refunds go back to your original payment method: in full if you cancel before the driver starts travelling, or minus the call-out fee after that. Your bank may take a few working days to show it.</li>
       </ul>
 
       <h2>7. Care of your goods</h2>

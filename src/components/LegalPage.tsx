@@ -4,7 +4,7 @@ import SiteFooter from "./SiteFooter";
 import { TERMS_VERSION } from "@/lib/company";
 
 export default function LegalPage({ title, intro, children }: { title: string; intro: string; children: React.ReactNode }) {
-  const updated = new Date(TERMS_VERSION).toLocaleDateString("en-NG", { day: "numeric", month: "long", year: "numeric" });
+  const updated = new Date(TERMS_VERSION.slice(0, 10)).toLocaleDateString("en-NG", { day: "numeric", month: "long", year: "numeric" });
   return (
     <main>
       <Brand right={<Link href="/" className="muted font-semibold">Book a truck</Link>} />

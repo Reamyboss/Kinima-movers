@@ -1,7 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/admin-auth";
+import { refundPayment } from "@/lib/paystack";
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "");
 
@@ -35,8 +37,36 @@ export async function assignDriver(form: FormData) {
 export async function cancelBooking(form: FormData) {
   const { db, user } = await requireAdmin();
   const id = str(form, "booking");
-  const { data } = await db.from("bookings").update({ status: "cancelled" }).eq("id", id).not("status", "in", "(delivered,cancelled)").select("id");
-  if (data?.length) await db.from("booking_events").insert({ booking_id: id, status: "cancelled", actor_id: user.id, note: "Cancelled by admin" });
+  const { data: b } = await db.from("bookings").select("*").eq("id", id).single();
+  if (!b || ["delivered", "cancelled"].includes(b.status)) return;
+
+  // Paid online: refund in full before the driver sets off; after that the
+  // call-out fee in the customer terms (20% of the fare) goes to the driver.
+  let refundNote = "";
+  const update: Record<string, unknown> = { status: "cancelled" };
+  if (b.payment_status === "paid" && b.paystack_reference) {
+    const refund = b.status === "assigned" ? b.paid_amount : Math.round(b.paid_amount * 0.8);
+    try {
+      await refundPayment(b.paystack_reference, refund);
+    } catch (e) {
+      console.error("refund failed", e);
+      redirect(`/admin?error=${encodeURIComponent(`Refund failed for ${b.ref}: ${(e as Error).message}. The booking was not cancelled.`)}`);
+    }
+    const callOut = b.paid_amount - refund;
+    Object.assign(update, { payment_status: "refunded", refunded_amount: refund },
+      callOut > 0 && b.driver_id ? { driver_payout: callOut, driver_payout_status: "owed" } : {});
+    refundNote = `; refunded ₦${refund.toLocaleString("en-NG")}${callOut > 0 ? `, call-out fee ₦${callOut.toLocaleString("en-NG")} to driver` : ""}`;
+  }
+  const { data } = await db.from("bookings").update(update).eq("id", id).not("status", "in", "(delivered,cancelled)").select("id");
+  if (data?.length) await db.from("booking_events").insert({ booking_id: id, status: "cancelled", actor_id: user.id, note: `Cancelled by admin${refundNote}` });
+  revalidatePath("/admin");
+}
+
+export async function markDriverPaid(form: FormData) {
+  const { db, user } = await requireAdmin();
+  const id = str(form, "booking");
+  const { data } = await db.from("bookings").update({ driver_payout_status: "paid" }).eq("id", id).eq("driver_payout_status", "owed").select("status, driver_payout");
+  if (data?.length) await db.from("booking_events").insert({ booking_id: id, status: data[0].status, actor_id: user.id, note: `Driver paid ₦${Number(data[0].driver_payout).toLocaleString("en-NG")}` });
   revalidatePath("/admin");
 }
 

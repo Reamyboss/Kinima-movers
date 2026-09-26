@@ -17,7 +17,7 @@ export default function Privacy() {
         <li><b>Load descriptions</b> typed into &ldquo;Tell us what you&apos;re moving&rdquo;, so we can improve load suggestions.</li>
         <li><b>Records of what was agreed:</b> the terms version accepted, the levy warnings shown, and levies recorded, so disputes can be settled fairly.</li>
       </ul>
-      <p>We do not collect your bank card details, your live location, your contacts or your photos.</p>
+      <p>We do not collect or store your bank card details: card payments are handled entirely by Paystack. We also do not collect your live location, your contacts or your photos. If you pay online we keep the email you give for the receipt and the payment reference.</p>
 
       <h2>2. Why we use it</h2>
       <ul>
@@ -32,7 +32,7 @@ export default function Privacy() {
       <ul>
         <li><b>Your driver</b> sees your name, phone and addresses only after accepting your job, and only for that job. Before that, drivers see just the areas, load and pay.</li>
         <li><b>The {COMPANY.name} team</b> sees bookings to manage jobs and complaints.</li>
-        <li><b>Service providers</b> who run parts of the service for us: our database and sign-in provider (Supabase), our website host (Vercel), and, when load suggestions use AI, an AI provider that processes the description you typed. They may only use it to provide their service to us. Maps are loaded from OpenStreetMap, which sees your internet address like any website.</li>
+        <li><b>Service providers</b> who run parts of the service for us: our database and sign-in provider (Supabase), our website host (Vercel), our payment processor (Paystack), and, when load suggestions use AI, an AI provider that processes the description you typed. They may only use it to provide their service to us. Maps are loaded from OpenStreetMap, which sees your internet address like any website.</li>
         <li><b>The police or courts</b>, only when the law requires it.</li>
       </ul>
 

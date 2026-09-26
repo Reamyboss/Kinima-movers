@@ -3,7 +3,7 @@ import Brand from "@/components/Brand";
 import { requireAdmin } from "@/lib/admin-auth";
 import { formatNaira } from "@/lib/pricing";
 import { rankDrivers, type DriverCandidate } from "@/lib/matching";
-import { assignDriver, cancelBooking, deleteAreaNote, saveAreaNote, savePrices, setDriverSector, setDriverStatus } from "./actions";
+import { assignDriver, cancelBooking, deleteAreaNote, markDriverPaid, saveAreaNote, savePrices, setDriverSector, setDriverStatus } from "./actions";
 import { loadPricing } from "@/lib/pricing-db";
 import { SECTORS, sectorCovers } from "@/lib/sectors";
 
@@ -26,11 +26,11 @@ const STATUS: Record<string, { label: string; tone: string }> = {
   cancelled: { label: "Cancelled", tone: "var(--line)" },
 };
 
-type SearchParams = Promise<{ tab?: string }>;
+type SearchParams = Promise<{ tab?: string; error?: string }>;
 
 export default async function AdminPage({ searchParams }: { searchParams: SearchParams }) {
   const { db, me } = await requireAdmin();
-  const tab = (await searchParams).tab ?? "jobs";
+  const { tab = "jobs", error } = await searchParams;
 
   return (
     <main>
@@ -43,6 +43,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
         ))}
       </nav>
       <section className="wrap pb-12">
+        {error && <p role="alert" className="card mb-4 p-4 font-semibold text-[var(--danger)]">{error}</p>}
         {tab === "drivers" ? <Drivers db={db} /> : tab === "prices" ? <Prices db={db} /> : tab === "levies" ? <Levies db={db} /> : <Jobs db={db} />}
       </section>
     </main>
@@ -76,6 +77,7 @@ async function Jobs({ db }: { db: Db }) {
   const open = list.filter((b) => b.status === "requested").length;
   const moving = list.filter((b) => !["requested", "delivered", "cancelled"].includes(b.status)).length;
   const revenue = list.filter((b) => b.status === "delivered" && new Date(b.created_at) >= start).reduce((s, b) => s + b.total, 0);
+  const owed = list.filter((b) => b.driver_payout_status === "owed");
 
   return (
     <div className="flex flex-col gap-4">
@@ -84,6 +86,12 @@ async function Jobs({ db }: { db: Db }) {
         <div className="card p-4"><b className="display num text-2xl">{moving}</b><div className="muted">On the road</div></div>
         <div className="card p-4"><b className="display num text-2xl">{formatNaira(revenue)}</b><div className="muted">Delivered today</div></div>
       </div>
+      {owed.length > 0 && (
+        <div className="card p-4" style={{ borderColor: "var(--amber)", borderWidth: 2 }}>
+          <b>You owe drivers {formatNaira(owed.reduce((s, b) => s + b.driver_payout, 0))}</b>
+          <span className="muted"> across {owed.length} job{owed.length > 1 ? "s" : ""}. Pay each driver by bank transfer, then tap &ldquo;Mark driver paid&rdquo; on the job.</span>
+        </div>
+      )}
       {list.length === 0 && <p className="card muted p-6 text-center">No bookings yet. New bookings from the website appear here.</p>}
       {list.map((b) => {
         const s = STATUS[b.status];
@@ -105,6 +113,17 @@ async function Jobs({ db }: { db: Db }) {
             )}
             {b.levy_paid > 0 && <div className="text-sm font-semibold">Levies recorded by driver: {formatNaira(b.levy_paid)} (customer refunds at cost)</div>}
             {d && <div className="text-sm">Driver: <b>{d.profile?.full_name}</b> · {d.plate_number} · {d.profile?.phone}</div>}
+            {b.payment_required && (
+              <div className="text-sm">Payment: <b>{b.payment_status === "paid" ? `paid online ${formatNaira(b.paid_amount)}` : b.payment_status === "refunded" ? `refunded ${formatNaira(b.refunded_amount)}` : b.payment_status === "pending" ? "customer is paying" : "not paid yet"}</b></div>
+            )}
+            {b.driver_payout_status === "owed" && (
+              <form action={markDriverPaid} className="flex flex-wrap items-center gap-2 text-sm">
+                <input type="hidden" name="booking" value={b.id} />
+                <span>Owed to driver: <b>{formatNaira(b.driver_payout)}</b></span>
+                <button className="btn btn-amber px-3 py-2">Mark driver paid</button>
+              </form>
+            )}
+            {b.driver_payout_status === "paid" && <div className="muted">Driver paid {formatNaira(b.driver_payout)}</div>}
             {["requested", "assigned"].includes(b.status) && (() => {
               const ranked = rankDrivers(b.pickup_area, candidates.filter((c) => c.id !== b.driver_id && sectorCovers(c.sector, b.pickup_area, b.dropoff_area, pricing)));
               const best = ranked[0];

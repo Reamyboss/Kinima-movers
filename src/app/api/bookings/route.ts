@@ -6,6 +6,7 @@ import { adminClient } from "@/lib/supabase/admin";
 import { loadAreaNotes } from "@/lib/area-notes-db";
 import { notesForTrip, levyText } from "@/lib/area-notes";
 import { TERMS_VERSION } from "@/lib/company";
+import { paymentsEnabled } from "@/lib/paystack";
 
 const Booking = z.object({
   customerName: z.string().trim().min(2, "Enter your name"),
@@ -62,12 +63,17 @@ export async function POST(req: Request) {
     total: quote.total,
     driver_earning: quote.driverEarning,
   };
-  const extra = { terms_version: TERMS_VERSION, terms_accepted_at: new Date().toISOString(), area_warnings: warnings };
+  const extra = {
+    terms_version: TERMS_VERSION,
+    terms_accepted_at: new Date().toISOString(),
+    area_warnings: warnings,
+    ...(paymentsEnabled() && { payment_required: true }),
+  };
 
   let { data, error } = await db.from("bookings").insert({ ...row, ...extra }).select("id, ref, total").single();
   if (error?.code === "PGRST204") {
     // The database update that adds these columns hasn't been run yet; still take the booking.
-    console.warn("bookings missing terms/levy columns; run supabase/migrations/0004");
+    console.warn("bookings missing newer columns; run the latest supabase/migrations");
     ({ data, error } = await db.from("bookings").insert(row).select("id, ref, total").single());
   }
 
@@ -76,5 +82,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "We couldn't save your booking. Please try again." }, { status: 500 });
   }
   await db.from("booking_events").insert({ booking_id: data.id, status: "requested" });
-  return NextResponse.json({ ref: data.ref, total: data.total });
+
+  // The customer's private booking page link (pay, track, delivery code).
+  const { data: secret } = await db.from("booking_secrets").insert({ booking_id: data.id }).select("access_token").single();
+  return NextResponse.json({ ref: data.ref, total: data.total, token: secret?.access_token ?? null, payFirst: paymentsEnabled() });
 }

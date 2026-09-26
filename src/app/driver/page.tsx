@@ -20,6 +20,7 @@ type OpenJob = {
 type Job = OpenJob & {
   status: string; customer_name: string; customer_phone: string; pickup_address: string; dropoff_address: string;
   load_notes: string | null; total: number; levy_paid?: number;
+  payment_required?: boolean; payment_status?: string; driver_payout?: number; driver_payout_status?: string;
 };
 
 const NEXT_ACTION: Record<string, string> = {
@@ -52,6 +53,7 @@ export default function DriverHome() {
   const [notes, setNotes] = useState<AreaNote[]>([]);
   const [sector, setSector] = useState<string | null>(null);
   const [levy, setLevy] = useState({ amount: "", note: "" });
+  const [code, setCode] = useState("");
 
   const refresh = useCallback(async () => {
     if (!supabase) return setState("signed-out");
@@ -209,7 +211,11 @@ export default function DriverHome() {
               <div><span className="muted">Pickup</span> {active.pickup_address}, {active.pickup_area} {active.pickup_floors ? `(${active.pickup_floors} floors up)` : ""}</div>
               <div><span className="muted">Drop-off</span> {active.dropoff_address}, {active.dropoff_area} {active.dropoff_floors ? `(${active.dropoff_floors} floors up)` : ""}</div>
               <div><span className="muted">Load</span> {loadName(active.load_type)}{active.helpers ? `, ${active.helpers} helper${active.helpers > 1 ? "s" : ""}` : ""}{active.load_notes ? ` · ${active.load_notes}` : ""}</div>
-              <div><span className="muted">Collect</span> <b className="num">{formatNaira(active.total + (active.levy_paid ?? 0))}</b> <span className="muted">(you keep {formatNaira(active.driver_earning)}{active.levy_paid ? `, plus ${formatNaira(active.levy_paid)} levy refund` : ""})</span></div>
+              {active.payment_required ? (
+                <div><span className="muted">Payment</span> <b>{active.payment_status === "paid" ? "Paid online" : "Waiting for the customer to pay"}</b> <span className="muted">(you earn {formatNaira(active.driver_earning)}, paid to you after delivery{active.levy_paid ? `; collect the ${formatNaira(active.levy_paid)} levy refund in cash` : ""})</span></div>
+              ) : (
+                <div><span className="muted">Collect</span> <b className="num">{formatNaira(active.total + (active.levy_paid ?? 0))}</b> <span className="muted">(you keep {formatNaira(active.driver_earning)}{active.levy_paid ? `, plus ${formatNaira(active.levy_paid)} levy refund` : ""})</span></div>
+              )}
             </div>
             <AreaWarnings notes={notesForTrip(notes, { pickupArea: active.pickup_area, dropoffArea: active.dropoff_area, pickupAddress: active.pickup_address, dropoffAddress: active.dropoff_address })} audience="driver" />
             <details className="rounded-xl bg-[var(--soft)] p-3 text-sm">
@@ -239,9 +245,26 @@ export default function DriverHome() {
             >
               Open directions in Google Maps
             </a>
-            <button className="btn btn-brand" disabled={busy} onClick={() => run(() => supabase!.rpc("advance_booking", { p_booking: active.id }))}>
-              <span>{NEXT_ACTION[active.status]}</span><span>›</span>
-            </button>
+            {active.payment_required && active.payment_status !== "paid" && active.status === "assigned" ? (
+              <div className="flex flex-col gap-2 rounded-xl bg-[var(--soft)] p-3 text-sm">
+                <p><b>Don&apos;t start driving yet.</b> The customer has been asked to pay. This page updates as soon as they do. You can call them on the number above.</p>
+                <button className="btn btn-ghost justify-center" disabled={busy} onClick={() => run(() => supabase!.rpc("release_unpaid_job", { p_booking: active.id }))}>
+                  Customer won&apos;t pay: release this job
+                </button>
+              </div>
+            ) : active.status === "in_transit" ? (
+              <form className="flex flex-col gap-2" onSubmit={(e) => { e.preventDefault(); run(async () => { const r = await supabase!.rpc("advance_booking", code ? { p_booking: active.id, p_code: code } : { p_booking: active.id }); if (!r.error) setCode(""); return r; }); }}>
+                <label className="field"><span>Customer&apos;s 4-digit delivery code</span>
+                  <input id="delivery_code" className="input num text-center text-2xl tracking-[.3em]" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} placeholder="0000" />
+                </label>
+                <button className="btn btn-brand" disabled={busy}><span>{NEXT_ACTION.in_transit}</span><span>›</span></button>
+                <p className="muted">Ask for the code only after everything is unloaded. Older bookings without a code can be completed with the box empty.</p>
+              </form>
+            ) : (
+              <button className="btn btn-brand" disabled={busy} onClick={() => run(() => supabase!.rpc("advance_booking", { p_booking: active.id }))}>
+                <span>{NEXT_ACTION[active.status]}</span><span>›</span>
+              </button>
+            )}
           </div>
         ) : driver.is_online ? (
           jobs.length ? (
